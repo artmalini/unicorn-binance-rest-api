@@ -401,6 +401,9 @@ class BinanceRestApiManager(object):
     def _create_futures_api_uri(self, path):
         return self.FUTURES_URL + '/' + self.FUTURES_API_VERSION + '/' + path
 
+    def _create_futures_api_uri_v2(self, path):
+        return self.FUTURES_URL + '/' + self.FUTURES_API_VERSION2 + '/' + path
+
     def _create_futures_data_api_uri(self, path):
         return self.FUTURES_DATA_URL + '/' + path
 
@@ -505,6 +508,11 @@ class BinanceRestApiManager(object):
 
     def _request_futures_api(self, method, path, signed=False, throw_exception=True, **kwargs):
         uri = self._create_futures_api_uri(path)
+
+        return self._request(method, uri, signed, True, throw_exception=throw_exception, **kwargs)
+
+    def _request_futures_api_v2(self, method, path, signed=False, throw_exception=True, **kwargs):
+        uri = self._create_futures_api_uri_v2(path)
 
         return self._request(method, uri, signed, True, throw_exception=throw_exception, **kwargs)
 
@@ -6249,7 +6257,7 @@ class BinanceRestApiManager(object):
         https://binance-docs.github.io/apidocs/futures/en/#future-account-balance-user_data
 
         """
-        return self._request_futures_api('get', 'balance', True, data=params)
+        return self._request_futures_api_v2('get', 'balance', True, data=params)
 
     def futures_account(self, **params):
         """
@@ -6258,7 +6266,7 @@ class BinanceRestApiManager(object):
         https://binance-docs.github.io/apidocs/futures/en/#account-information-user_data
 
         """
-        return self._request_futures_api('get', 'account', True, data=params)
+        return self._request_futures_api_v2('get', 'account', True, data=params)
 
     def futures_change_leverage(self, **params):
         """
@@ -6302,7 +6310,7 @@ class BinanceRestApiManager(object):
         https://binance-docs.github.io/apidocs/futures/en/#position-information-user_data
 
         """
-        return self._request_futures_api('get', 'positionRisk', True, data=params)
+        return self._request_futures_api_v2('get', 'positionRisk', True, data=params)
 
     def futures_account_trades(self, **params):
         """
