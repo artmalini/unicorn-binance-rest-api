@@ -35,16 +35,15 @@
 # IN THE SOFTWARE.
 
 import setuptools
-from unicorn_binance_rest_api.manager import BinanceRestApiManager
+# from unicorn_binance_rest_api.manager import BinanceRestApiManager
 
-ubra = BinanceRestApiManager(exchange="binance.us")
+# ubra = BinanceRestApiManager(exchange="binance.us")
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
      name='unicorn-binance-rest-api',
-     version=str(ubra.get_version()),
      author="LUCIT Systems and Development",
      author_email='info@lucit.tech',
      url="https://github.com/artmalini/unicorn-binance-rest-api",
