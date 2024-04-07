@@ -6,13 +6,17 @@
 # Part of ‘UNICORN Binance REST API’
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
-# Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# Documentation: https://unicorn-binance-rest-api.docs.lucit.tech
+# PyPI: https://pypi.org/project/unicorn-binance-rest-api
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2017-2021, Sam McHardy (https://github.com/sammchardy)
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2017-2021, MIT License, Sam McHardy (https://github.com/sammchardy)
+# Copyright (c) 2021-2023, LSOSL License, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -119,4 +123,9 @@ class UnknownExchange(Exception):
     """
     Exception for if the manager class is started with an unkown exchange.
     """
+    pass
+
+
+class AlreadyStoppedError(Exception):
+    """Exception raised when an attempt is made to use an instance that has already been stopped."""
     pass

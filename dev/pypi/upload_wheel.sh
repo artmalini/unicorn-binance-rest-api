@@ -1,17 +1,21 @@
-#!/usr/bin/env python3
+#!/usr/bin/env bash
 # -*- coding: utf-8 -*-
 #
-# File: example_exchange_endpoints.py
+# File: pypi/upload_wheel.sh
 #
-# Part of ‘UNICORN Binance REST API’
-# Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
-# Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
-# Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# Part of ‘UNICORN Binance WebSocket API’
+# Project website: https://www.lucit.tech/unicorn-binance-websocket-api.html
+# Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-websocket-api
+# Documentation: https://unicorn-binance-websocket-api.docs.lucit.tech
+# PyPI: https://pypi.org/project/unicorn-binance-websocket-api
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2017-2021, MIT License, Sam McHardy (https://github.com/sammchardy)
+# Copyright (c) 2021-2023, LSOSL License, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,20 +36,8 @@
 # WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
+#
+# create this file:
+# ~/.pypirc
 
-from unicorn_binance_rest_api.manager import BinanceRestApiManager
-import logging
-import os
-
-# https://docs.python.org/3/library/logging.html#logging-levels
-logging.getLogger("unicorn_binance_rest_api")
-logging.basicConfig(level=logging.DEBUG,
-                    filename=os.path.basename(__file__) + '.log',
-                    format="{asctime} [{levelname:8}] {process} {thread} {module}: {message}",
-                    style="{")
-
-api_key = ""
-api_secret = ""
-
-ubra = BinanceRestApiManager(api_key, api_secret, exchange="binance.com-margin", tld="us", debug=True)
-
+python3 -m twine upload dist/*

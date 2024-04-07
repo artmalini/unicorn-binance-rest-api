@@ -1,15 +1,24 @@
 name: unicorn_binance_rest_api
+
+channels:
+  - lucit
+  - conda-forge
+  - defaults
+
 dependencies:
-- python>=3.6.1
-- pip:
+  - python>=3.7
   - certifi
   - colorama
   - cryptography
+  - cython
   - dateparser
-  - pyOpenSSL
-  - PySocks
+  - lucit::lucit-licensing-python
+  - importlib-metadata  # [py<38]
+  - pyopenssl
+  - pysocks
   - requests
-  - requests[socks]
   - regex
-  - service-identity
   - ujson
+  - pip:
+    - service-identity
+    - requests[socks]

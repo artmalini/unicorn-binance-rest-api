@@ -7,11 +7,15 @@
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
 # Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# PyPI: https://pypi.org/project/lucit-licensing-python
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/lucit-licensing-python/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -47,7 +51,8 @@ logging.basicConfig(level=logging.DEBUG,
 api_key = ""
 api_secret = ""
 
-ubra = BinanceRestApiManager(api_key, api_secret, tld="com")
+# To use this library you need a valid UNICORN Binance Suite License: https://medium.lucit.tech/87b0088124a8
+ubra = BinanceRestApiManager(api_key=api_key, api_secret=api_secret, tld="com")
 
 # uncomment to access testnet endpoints
 # spot:
@@ -76,3 +81,4 @@ existing_orders = ubra.get_open_orders(symbol='BTCUSDT')
 for order in existing_orders:
     print(ubra.cancel_order(symbol="BTCUSDT", orderId=order['orderId']))
 
+ubra.stop_manager()

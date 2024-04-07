@@ -7,11 +7,15 @@
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
 # Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# PyPI: https://pypi.org/project/lucit-licensing-python
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/lucit-licensing-python/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -37,6 +41,8 @@ from unicorn_binance_rest_api.manager import BinanceRestApiManager
 
 api_key = "*"
 api_secret = "*"
+
+# To use this library you need a valid UNICORN Binance Suite License: https://medium.lucit.tech/87b0088124a8
 ubra = BinanceRestApiManager(api_key, api_secret)
 
 # Retrieve 1-minute klines for the last day so far
@@ -50,3 +56,5 @@ print(f"klines_30m:\r\n{klines_30m}")
 # Retrieve weekly klines since they are listed
 klines_1w = ubra.get_historical_klines("BNBBTC", "1w", "1 Jan, 2017")
 print(f"klines_1w:\r\n{klines_1w}")
+
+ubra.stop_manager()

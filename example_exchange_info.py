@@ -1,17 +1,21 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# File: create_wheel.sh
+# File: example_exchange_info.py
 #
 # Part of ‘UNICORN Binance REST API’
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
 # Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# PyPI: https://pypi.org/project/lucit-licensing-python
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/lucit-licensing-python/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2017-2021, Sam McHardy (https://github.com/sammchardy)
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -33,15 +37,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-security-check() {
-    echo -n "Did you change the version in \`CHANGELOG.md\`, \`sphinx/source/conf.py\` and \`unicorn_binance_rest_api/manager.py\`? [yes|NO] "
-    local SURE
-    read SURE
-    if [ "$SURE" != "yes" ]; then
-        exit 1
-    fi
-    echo "ok, lets go ..."
-}
+from unicorn_binance_rest_api.manager import BinanceRestApiManager
+import logging
+import os
 
-security-check
-python3 setup.py bdist_wheel sdist
+# https://docs.python.org/3/library/logging.html#logging-levels
+logging.getLogger("unicorn_binance_rest_api")
+logging.basicConfig(level=logging.DEBUG,
+                    filename=os.path.basename(__file__) + '.log',
+                    format="{asctime} [{levelname:8}] {process} {thread} {module}: {message}",
+                    style="{")
+
+api_key = ""
+api_secret = ""
+
+# To use this library you need a valid UNICORN Binance Suite License: https://medium.lucit.tech/87b0088124a8
+with BinanceRestApiManager(api_key=api_key, api_secret=api_secret, exchange="binance.com") as ubra:
+    get_exchange_info = ubra.get_exchange_info(**{'symbol': 'ETHUSDT'})
+    print(f"get_exchange_info: {get_exchange_info}")
+

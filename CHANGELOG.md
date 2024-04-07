@@ -7,9 +7,95 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 [Discussions about unicorn-binance-rest-api releases!](https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api/discussions/categories/releases)
 
-[How to upgrade to the latest version!](https://unicorn-binance-rest-api.docs.lucit.tech/README.html#installation-and-upgrade)
+[How to upgrade to the latest version!](https://unicorn-binance-rest-api.docs.lucit.tech/readme.html#installation-and-upgrade)
 
-## 1.10.0.dev (development stage/unreleased/unstable)
+## 2.2.1.dev (development stage/unreleased/unstable)
+### Changed
+- Renamed `binance.com-coin-futures` to `binance.com-coin_futures`
+
+
+## 2.2.1
+`unicorn-binance-rest-api` can now also be installed on all architectures on which there are no precompiled packages from 
+LUCIT. PIP now automatically recognises whether there is a suitable precompiled package and if not, the source is 
+automatically compiled on the target system during the installation process with Cython. Even if you don't have to do 
+anything special, please note that this process takes some time!
+
+## 2.2.0
+### Added
+- Support of `params` in `manager.py`:
+  - `get_exchange_info()`
+  - `futures_exchange_info()`
+  - `futures_coin_exchange_info()`
+
+## 2.1.2
+### Added 
+- Typing for a few more parameters.
+### Fixed
+- Fixed handling of `tld` in `manager.__init__()`.
+### Removed
+- `version=1` parameter in `manager._create_futures_coin_data_api_url()`.
+
+## 2.1.1
+### Fixed
+- Used `False` instead of `None` in `manager.__init__()` parameter `tld`.
+
+## 2.1.0
+### Adding
+- Support of multiple tenants with `kwargs['api_key']` and `kwargs['api_secret']` in `manager._request()` - every 
+  private rest call now supports specific `api_key` and `api_secret` values via `**kwargs`.
+- Support of `**params` in:
+    - `manager.stream_get_listen_key()`
+    - `manager.stream_keepalive()`
+    - `manager.stream_close()`
+    - `manager.margin_stream_get_listen_key()`
+    - `manager.margin_stream_keepalive()`
+    - `manager.margin_stream_close()`
+    - `manager.isolated_margin_stream_get_listen_key()`
+    - `manager.isolated_margin_stream_keepalive()`
+    - `manager.isolated_margin_stream_close()`
+    - `manager.futures_stream_get_listen_key()`
+    - `manager.futures_stream_keepalive()`
+    - `manager.futures_stream_close()`
+    - `manager.futures_coin_stream_get_listen_key()`
+    - `manager.futures_coin_stream_keepalive()`
+    - `manager.futures_coin_stream_close()`
+### Changed
+- Using types in `manager.__init__()`.
+
+## 2.0.5
+- Building conda packages and distribute them via https://anaconda.org/lucit
+
+## 2.0.4
+- Same as 2.0.2, error during github upload.
+
+## 2.0.3
+- Same as 2.0.2, error during pypi upload.
+
+## 2.0.2
+### Changed
+- Replaced URLs
+### Fixed
+- Stopping manager automatically if an unknown exchange string was used before the exception gets raised.
+
+## 2.0.1
+### Fixed
+- New exception `AlreadyStoppedError` is thrown if a stopped instance gets used.
+- Memory leak with implementation of `manager.stop_manager()`.
+
+## 2.0.0
+### Added
+- Support for Python 3.11 and 3.12
+- Integration of the `lucit-licensing-python` library for verifying the UNICORN Binance Suite license. A license can be 
+  purchased in the LUCIT Online Shop: https://shop.lucit.services/software/unicorn-binance-suite
+- License change from MIT to LSOSL - LUCIT Synergetic Open Source License:
+  https://github.com/LUCIT-Systems-and-Development/unicorn-binance-websocket-api/blob/master/LICENSE
+- Conversion to a C++ compiled Cython package with precompiled as well as PyPy and source code wheels.
+- Setup of a "Trusted Publisher" deployment chain. The source code is transparently packaged into wheels directly from
+  the GitHub repository by a GitHub action for all possible platforms and published directly as a new release on GitHub
+  and PyPi. A second process from Conda-Forge then uploads it to Anaconda. Thus, the entire deployment process is
+  transparent and the user can be sure that the compilation of a version fully corresponds to the source code.
+- `manager.stop_manager()`
+- Support for `with`-context
 
 ## 1.10.0
 ### Added

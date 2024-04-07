@@ -7,11 +7,15 @@
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
 # Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# PyPI: https://pypi.org/project/lucit-licensing-python
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/lucit-licensing-python/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -52,6 +56,7 @@ if __name__ == "__main__":
                         format="{asctime} [{levelname:8}] {process} {thread} {module}: {message}",
                         style="{")
 
+    # To use this library you need a valid UNICORN Binance Suite License: https://medium.lucit.tech/87b0088124a8
     ubra = BinanceRestApiManager(exchange="binance.com",
                                  socks5_proxy_server=socks5_proxy,
                                  socks5_proxy_user=socks5_user,
@@ -60,3 +65,5 @@ if __name__ == "__main__":
 
     klines_1m = ubra.get_historical_klines("BTCUSDT", ubra.KLINE_INTERVAL_1MINUTE, "1 day ago UTC")
     print(f"klines_1m:\r\n{klines_1m}")
+
+    ubra.stop_manager()

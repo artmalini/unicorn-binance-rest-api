@@ -7,12 +7,16 @@
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
 # Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# PyPI: https://pypi.org/project/lucit-licensing-python
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/lucit-licensing-python/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
 # Copyright (c) 2017-2021, Sam McHardy (https://github.com/sammchardy)
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -36,15 +40,36 @@
 
 from unicorn_binance_rest_api.manager import *
 from unicorn_binance_rest_api.enums import *
+import os
 import requests_mock
 import unittest
 
-client = BinanceRestApiManager('api_key', 'api_secret', exchange="binance.us")
+import tracemalloc
+tracemalloc.start(25)
+
+# os.environ["LUCIT_API_SECRET"] = ""
+# os.environ["LUCIT_LICENSE_TOKEN"] = ""
+
+logging.getLogger("unicorn_binance_rest_api")
+logging.basicConfig(level=logging.DEBUG,
+                    filename=os.path.basename(__file__) + '.log',
+                    format="{asctime} [{levelname:8}] {process} {thread} {module}: {message}",
+                    style="{")
+
+print(f"Starting unittests!")
 
 
-class TestBinanceComRestManager(unittest.TestCase):
+class TestBinanceUsRestManager(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        print(f"\r\nTestBinanceUsRestManager:")
+        cls.ubra = BinanceRestApiManager('api_key', 'api_secret', exchange="binance.us")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.ubra.stop_manager()
+
     def setUp(self):
-        self.client = client
         take_profit = FUTURE_ORDER_TYPE_TAKE_PROFIT
 
     # Test historical klines:
@@ -71,9 +96,9 @@ class TestBinanceComRestManager(unittest.TestCase):
                   json=first_res)
             m.get('https://api.binance.us/api/v3/klines?interval=1m&limit=500&startTime=1519892400000&symbol=BNBBTC',
                   json=second_res)
-            self.client.get_historical_klines(
+            self.__class__.ubra.get_historical_klines(
                 symbol="BNBBTC",
-                interval=self.client.KLINE_INTERVAL_1MINUTE,
+                interval=self.__class__.ubra.KLINE_INTERVAL_1MINUTE,
                 start_str="1st March 2018"
             )
             # self.assertEqual(len(kline), 500)
@@ -127,9 +152,9 @@ class TestBinanceComRestManager(unittest.TestCase):
                 "endTime=1519880400000&symbol=BNBBTC",
                 json=first_res,
             )
-            klines = self.client.get_historical_klines(
+            klines = self.__class__.ubra.get_historical_klines(
                 symbol="BNBBTC",
-                interval=self.client.KLINE_INTERVAL_1MINUTE,
+                interval=self.__class__.ubra.KLINE_INTERVAL_1MINUTE,
                 start_str="1st March 2018",
                 end_str="1st March 2018 05:00:00",
             )
@@ -183,9 +208,9 @@ class TestBinanceComRestManager(unittest.TestCase):
                 "endTime=1519880400000&symbol=BNBBTC",
                 json=first_res,
             )
-            klines = self.client.get_historical_klines(
+            klines = self.__class__.ubra.get_historical_klines(
                 symbol="BNBBTC",
-                interval=self.client.KLINE_INTERVAL_1MINUTE,
+                interval=self.__class__.ubra.KLINE_INTERVAL_1MINUTE,
                 start_str=1519862400000,
                 end_str=1519880400000,
             )
@@ -239,9 +264,9 @@ class TestBinanceComRestManager(unittest.TestCase):
                 "endTime=1519880400000&symbol=BNBBTC",
                 json=first_res,
             )
-            klines = self.client.get_historical_klines_generator(
+            klines = self.__class__.ubra.get_historical_klines_generator(
                 symbol="BNBBTC",
-                interval=self.client.KLINE_INTERVAL_1MINUTE,
+                interval=self.__class__.ubra.KLINE_INTERVAL_1MINUTE,
                 start_str=1519862400000,
                 end_str=1519880400000,
             )
@@ -267,6 +292,10 @@ class TestBinanceComRestManager(unittest.TestCase):
     def test_withdraw_api_exception(self):
         """Test Withdraw API response Exception"""
         pass
+
+    def test_with_context(self):
+        with BinanceRestApiManager(exchange="binance.us") as with_ubra:
+            self.assertIsInstance(with_ubra.get_version(), str)
 
 
 if __name__ == '__main__':

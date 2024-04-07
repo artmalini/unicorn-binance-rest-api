@@ -6,13 +6,17 @@
 # Part of ‘UNICORN Binance REST API’
 # Project website: https://www.lucit.tech/unicorn-binance-rest-api.html
 # Github: https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api
-# Documentation: https://unicorn-binance-rest-api.docs.lucit.tech/
-# PyPI: https://pypi.org/project/unicorn-binance-rest-api/
+# Documentation: https://unicorn-binance-rest-api.docs.lucit.tech
+# PyPI: https://pypi.org/project/unicorn-binance-rest-api
+# LUCIT Online Shop: https://shop.lucit.services/software
+#
+# License: LSOSL - LUCIT Synergetic Open Source License
+# https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api/blob/master/LICENSE
 #
 # Author: LUCIT Systems and Development
 #
-# Copyright (c) 2017-2021, Sam McHardy (https://github.com/sammchardy)
-# Copyright (c) 2021-2023, LUCIT Systems and Development (https://www.lucit.tech) and Oliver Zehentleitner
+# Copyright (c) 2017-2021, MIT License, Sam McHardy (https://github.com/sammchardy)
+# Copyright (c) 2021-2023, LSOSL License, LUCIT Systems and Development (https://www.lucit.tech)
 # All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -34,7 +38,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
+from lucit_licensing_python.manager import LucitLicensingManager
+from lucit_licensing_python.exceptions import NoValidatedLucitLicense
+from operator import itemgetter
+from typing import Optional
+from urllib.parse import urlencode
+from .helpers import date_to_milliseconds, interval_to_milliseconds
+from .exceptions import BinanceAPIException, BinanceRequestException, BinanceWithdrawException, UnknownExchange, \
+    AlreadyStoppedError
 import colorama
+import cython
 import datetime
 import hashlib
 import hmac
@@ -42,11 +55,10 @@ import logging
 import requests
 import platform
 import time
-from operator import itemgetter
-from typing import Optional
-from urllib.parse import urlencode
-from .helpers import date_to_milliseconds, interval_to_milliseconds
-from .exceptions import BinanceAPIException, BinanceRequestException, BinanceWithdrawException, UnknownExchange
+
+
+__app_name__: str = "unicorn-binance-rest-api"
+__version__: str = "2.2.1.dev"
 
 logger = logging.getLogger("unicorn_binance_rest_api")
 
@@ -80,7 +92,7 @@ class BinanceRestApiManager(object):
     :type warn_on_update: bool
     :param exchange: Select binance.com, binance.com-testnet, binance.com-margin, binance.com-margin-testnet,
              binance.com-isolated_margin, binance.com-isolated_margin-testnet, binance.com-futures,
-             binance.com-futures-testnet, binance.com-coin-futures, binance.us or trbinance.com (default: binance.com)
+             binance.com-futures-testnet, binance.com-coin_futures, binance.us or trbinance.com (default: binance.com)
              This overrules parameter `tld`.
     :type exchange: str
     :param debug: If True the lib adds additional information to logging outputs
@@ -95,6 +107,17 @@ class BinanceRestApiManager(object):
     :type socks5_proxy_pass:  str
     :param socks5_proxy_ssl_verification: Set to `False` to disable SSL server verification. Default is `True`.
     :type socks5_proxy_ssl_verification:  bool
+    :param lucit_api_secret: The `api_secret` of your UNICORN Binance Suite license from
+                             https://shop.lucit.services/software/unicorn-binance-suite
+    :type lucit_api_secret:  str
+    :param lucit_license_ini: Specify the path including filename to the config file (ex: `~/license_a.ini`). If not
+                              provided lucitlicmgr tries to load a `lucit_license.ini` from `/home/oliver/.lucit/`.
+    :type lucit_license_ini:  str
+    :param lucit_license_profile: The license profile to use. Default is 'LUCIT'.
+    :type lucit_license_profile:  str
+    :param lucit_license_token: The `license_token` of your UNICORN Binance Suite license from
+                                https://shop.lucit.services/software/unicorn-binance-suite
+    :type lucit_license_token:  str
     """
 
     API_URL = 'https://api.binance.{}/api'
@@ -186,161 +209,92 @@ class BinanceRestApiManager(object):
     MINING_TO_FIAT = "MINING_C2C"
 
     def __init__(self,
-                 api_key=None,
-                 api_secret=None,
-                 requests_params=None,
-                 tld=False,
-                 warn_on_update=True,
-                 exchange=False,
-                 disable_colorama=False,
-                 debug=False,
+                 api_key: Optional[str] = None,
+                 api_secret: Optional[str] = None,
+                 requests_params: dict = None,
+                 tld: Optional[str] = None,
+                 warn_on_update: bool = True,
+                 exchange: Optional[str] = None,
+                 disable_colorama: bool = False,
+                 debug: bool = False,
                  socks5_proxy_server: Optional[str] = None,
                  socks5_proxy_user: Optional[str] = None,
                  socks5_proxy_pass: Optional[str] = None,
                  socks5_proxy_ssl_verification: Optional[bool] = True,
-                 ):
+                 lucit_api_secret: Optional[str] = None,
+                 lucit_license_ini: Optional[str] = None,
+                 lucit_license_profile: Optional[str] = None,
+                 lucit_license_token: Optional[str] = None):
 
-        self.name = "unicorn-binance-rest-api"
-        self.version = "1.10.0"
-        logger.info(f"New instance of {self.get_user_agent()} on {str(platform.system())} {str(platform.release())} "
-                    f"for exchange {exchange} started ...")
-        if disable_colorama is not True:
-            logger.info(f"Initiating `colorama_{colorama.__version__}`")
-            colorama.init()
-        self.exchange = exchange
-        self.debug = debug
+        self.name: Optional[str] = __app_name__
+        self.version: Optional[str] = __version__
+        logger.info(f"New instance of {self.get_user_agent()}-{'compiled' if cython.compiled else 'source'} on "
+                    f"{str(platform.system())} {str(platform.release())} for exchange {exchange} started ...")
+        self.sigterm = False
+        self.session = None
+        self.lucit_api_secret: Optional[str] = lucit_api_secret
+        self.lucit_license_token: Optional[str] = lucit_license_token
+        self.lucit_license_ini: Optional[str] = lucit_license_ini
+        self.lucit_license_profile: Optional[str] = lucit_license_profile
+        self.lucit_license_token: Optional[str] = lucit_license_token
+        license_type: Optional[str] = "UNICORN-BINANCE-SUITE"
+        self.llm = LucitLicensingManager(api_secret=self.lucit_api_secret,
+                                         license_ini=self.lucit_license_ini,
+                                         license_profile=self.lucit_license_profile,
+                                         license_token=self.lucit_license_token,
+                                         parent_shutdown_function=self.stop_manager,
+                                         program_used=self.name,
+                                         needed_license_type=license_type,
+                                         start=True)
+        licensing_exception = self.llm.get_license_exception()
+        if licensing_exception is not None:
+            raise NoValidatedLucitLicense(licensing_exception)
 
-        if socks5_proxy_server is None:
-            self.socks5_proxy_address: Optional[str] = None
-            self.socks5_proxy_user: Optional[str] = None
-            self.socks5_proxy_pass: Optional[str] = None
-            self.socks5_proxy_port: Optional[str] = None
-            self.socks5_proxy_ssl_verification: Optional[bool] = True
-        else:
-            # Prepare Socks Proxy usage
-            self.socks5_proxy_ssl_verification = socks5_proxy_ssl_verification
-            self.socks5_proxy_user = socks5_proxy_user
-            self.socks5_proxy_pass = socks5_proxy_pass
-            self.socks5_proxy_address, self.socks5_proxy_port = socks5_proxy_server.split(":")
-            socks_proxy_uri = "socks5://"
-            if self.socks5_proxy_user is not None:
-                socks_proxy_uri += self.socks5_proxy_user
-                if self.socks5_proxy_pass is not None:
-                    socks_proxy_uri += f":{self.socks5_proxy_pass}"
-                socks_proxy_uri += "@"
-            socks_proxy_uri += f"{self.socks5_proxy_address}:{self.socks5_proxy_port}"
-            logger.info(f"Created SOCKS5 proxy URI: {socks_proxy_uri}")
-            self.request_socks5_proxies = {
-                'http': socks_proxy_uri,
-                'https': socks_proxy_uri
-            }
+        if self.sigterm is False:
+            if disable_colorama is not True:
+                logger.info(f"Initiating `colorama_{colorama.__version__}`")
+                colorama.init()
+            self.exchange = exchange
+            self.debug = debug
 
-        if tld is not False:
-            # Todo: Remove Block with tld!
-            logger.warning("The parameter BinanceRestApiManager(tld=`com`) is obsolete, use parameter `exchange` "
-                           "instead! Attention: parameter `exchange` overrules `tld`!! ")
-            self.API_URL = self.API_URL.format(tld)
-            self.MARGIN_API_URL = self.MARGIN_API_URL.format(tld)
-            self.WEBSITE_URL = self.WEBSITE_URL.format(tld)
-            self.FUTURES_URL = self.FUTURES_URL.format(tld)
-            self.FUTURES_DATA_URL = self.FUTURES_DATA_URL.format(tld)
-            self.FUTURES_COIN_URL = self.FUTURES_COIN_URL.format(tld)
-            self.FUTURES_COIN_DATA_URL = self.FUTURES_COIN_DATA_URL.format(tld)
+            if socks5_proxy_server is None:
+                self.socks5_proxy_address: Optional[str] = None
+                self.socks5_proxy_user: Optional[str] = None
+                self.socks5_proxy_pass: Optional[str] = None
+                self.socks5_proxy_port: Optional[str] = None
+                self.socks5_proxy_ssl_verification: Optional[bool] = True
+            else:
+                # Prepare Socks Proxy usage
+                self.socks5_proxy_ssl_verification = socks5_proxy_ssl_verification
+                self.socks5_proxy_user = socks5_proxy_user
+                self.socks5_proxy_pass = socks5_proxy_pass
+                self.socks5_proxy_address, self.socks5_proxy_port = socks5_proxy_server.split(":")
+                socks_proxy_uri = "socks5://"
+                if self.socks5_proxy_user is not None:
+                    socks_proxy_uri += self.socks5_proxy_user
+                    if self.socks5_proxy_pass is not None:
+                        socks_proxy_uri += f":{self.socks5_proxy_pass}"
+                    socks_proxy_uri += "@"
+                socks_proxy_uri += f"{self.socks5_proxy_address}:{self.socks5_proxy_port}"
+                logger.info(f"Created SOCKS5 proxy URI: {socks_proxy_uri}")
+                self.request_socks5_proxies = {
+                    'http': socks_proxy_uri,
+                    'https': socks_proxy_uri
+                }
 
-        if self.exchange == "binance.com":
-            self.API_URL = "https://api.binance.com/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://www.binance.com"
-            self.FUTURES_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
-        elif self.exchange == "binance.com-testnet" or self.exchange == "binance.com-futures-testnet":
-            # https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api/issues/20
-            self.API_URL = "https://testnet.binance.vision/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://testnet.binance.vision"
-            self.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
-            self.FUTURES_DATA_URL = "https://testnet.binancefuture.com/futures/data"
-            self.FUTURES_COIN_URL = "https://testnet.binancefuture.com/dapi"
-            self.FUTURES_COIN_DATA_URL = "https://testnet.binancefuture.com/futures/data"
-        elif self.exchange == "binance.com-margin":
-            self.API_URL = "https://api.binance.com/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://www.binance.com"
-            self.FUTURES_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
-        elif self.exchange == "binance.com-margin-testnet":
-            self.API_URL = "https://testnet.binance.vision/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://testnet.binance.vision"
-            self.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
-            self.FUTURES_DATA_URL = "https://testnet.binancefuture.com/futures/data"
-            self.FUTURES_COIN_URL = "https://testnet.binancefuture.com/dapi"
-            self.FUTURES_COIN_DATA_URL = "https://testnet.binancefuture.com/futures/data"
-        elif self.exchange == "binance.com-isolated_margin":
-            self.API_URL = "https://api.binance.com/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://www.binance.com"
-            self.FUTURES_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
-        elif self.exchange == "binance.com-isolated_margin-testnet":
-            self.API_URL = "https://testnet.binance.vision/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://testnet.binance.vision"
-            self.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
-            self.FUTURES_DATA_URL = "https://testnet.binancefuture.com/futures/data"
-            self.FUTURES_COIN_URL = "https://testnet.binancefuture.com/dapi"
-            self.FUTURES_COIN_DATA_URL = "https://testnet.binancefuture.com/futures/data"
-        elif self.exchange == "binance.com-futures":
-            self.API_URL = "https://api.binance.com/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://www.binance.com"
-            self.FUTURES_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
-        elif self.exchange == "binance.com-coin-futures":
-            self.API_URL = "https://api.binance.com/api"
-            self.MARGIN_API_URL = " https://api.binance.com/sapi"
-            self.WEBSITE_URL = "https://www.binance.com"
-            self.FUTURES_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
-        elif self.exchange == "binance.us":
-            # Todo: Needs a test
-            self.API_URL = "https://api.binance.us/api"
-            self.MARGIN_API_URL = " https://api.binance.us/sapi"
-            self.WEBSITE_URL = "https://www.binance.us"
-            self.FUTURES_URL = "https://fapi.binance.us/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.binance.us/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.binance.us/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.binance.us/futures/data"
-        elif self.exchange == "trbinance.com":
-            # Todo: Needs a test
-            self.API_URL = "https://www.trbinance.com/api"
-            self.MARGIN_API_URL = " https://api.trbinance.com/sapi"
-            self.WEBSITE_URL = "https://www.trbinance.com"
-            self.FUTURES_URL = "https://fapi.trbinance.com/fapi"
-            self.FUTURES_DATA_URL = "https://fapi.trbinance.com/futures/data"
-            self.FUTURES_COIN_URL = "https://fapi.trbinance.com/fapi"
-            self.FUTURES_COIN_DATA_URL = "https://dapi.trbinance.com/futures/data"
-        elif self.exchange:
-            # Unknown Exchange
-            error_msg = f"Unknown exchange '{str(self.exchange)}'! Read the docs to see a list of supported " \
-                        "exchanges: https://unicorn-binance-rest-api.docs.lucit.tech/unicorn_" \
-                        "binance_rest_api.html#module-unicorn_binance_rest_api.unicorn_binance_rest_" \
-                        "api_manager"
-            logger.critical(error_msg)
+            if tld is not None:
+                # Todo: Remove Block with tld!
+                logger.warning("The parameter BinanceRestApiManager(tld=`com`) is obsolete, use parameter `exchange` "
+                               "instead! Attention: parameter `exchange` overrules `tld`!! ")
+                self.API_URL = self.API_URL.format(tld)
+                self.MARGIN_API_URL = self.MARGIN_API_URL.format(tld)
+                self.WEBSITE_URL = self.WEBSITE_URL.format(tld)
+                self.FUTURES_URL = self.FUTURES_URL.format(tld)
+                self.FUTURES_DATA_URL = self.FUTURES_DATA_URL.format(tld)
+                self.FUTURES_COIN_URL = self.FUTURES_COIN_URL.format(tld)
+                self.FUTURES_COIN_DATA_URL = self.FUTURES_COIN_DATA_URL.format(tld)
 
-            raise UnknownExchange(error_msg)
-        else:
-            if tld is False:
+            if self.exchange == "binance.com":
                 self.API_URL = "https://api.binance.com/api"
                 self.MARGIN_API_URL = " https://api.binance.com/sapi"
                 self.WEBSITE_URL = "https://www.binance.com"
@@ -348,38 +302,147 @@ class BinanceRestApiManager(object):
                 self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
                 self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
                 self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
+            elif self.exchange == "binance.com-testnet" or self.exchange == "binance.com-futures-testnet":
+                # https://github.com/LUCIT-Systems-and-Development/unicorn-binance-rest-api/issues/20
+                self.API_URL = "https://testnet.binance.vision/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://testnet.binance.vision"
+                self.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
+                self.FUTURES_DATA_URL = "https://testnet.binancefuture.com/futures/data"
+                self.FUTURES_COIN_URL = "https://testnet.binancefuture.com/dapi"
+                self.FUTURES_COIN_DATA_URL = "https://testnet.binancefuture.com/futures/data"
+            elif self.exchange == "binance.com-margin":
+                self.API_URL = "https://api.binance.com/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://www.binance.com"
+                self.FUTURES_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
+                self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
+            elif self.exchange == "binance.com-margin-testnet":
+                self.API_URL = "https://testnet.binance.vision/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://testnet.binance.vision"
+                self.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
+                self.FUTURES_DATA_URL = "https://testnet.binancefuture.com/futures/data"
+                self.FUTURES_COIN_URL = "https://testnet.binancefuture.com/dapi"
+                self.FUTURES_COIN_DATA_URL = "https://testnet.binancefuture.com/futures/data"
+            elif self.exchange == "binance.com-isolated_margin":
+                self.API_URL = "https://api.binance.com/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://www.binance.com"
+                self.FUTURES_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
+                self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
+            elif self.exchange == "binance.com-isolated_margin-testnet":
+                self.API_URL = "https://testnet.binance.vision/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://testnet.binance.vision"
+                self.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
+                self.FUTURES_DATA_URL = "https://testnet.binancefuture.com/futures/data"
+                self.FUTURES_COIN_URL = "https://testnet.binancefuture.com/dapi"
+                self.FUTURES_COIN_DATA_URL = "https://testnet.binancefuture.com/futures/data"
+            elif self.exchange == "binance.com-futures":
+                self.API_URL = "https://api.binance.com/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://www.binance.com"
+                self.FUTURES_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
+                self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
+            elif self.exchange == "binance.com-coin-futures" or self.exchange == "binance.com-coin_futures":
+                self.API_URL = "https://api.binance.com/api"
+                self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                self.WEBSITE_URL = "https://www.binance.com"
+                self.FUTURES_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
+                self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
+                self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
+            elif self.exchange == "binance.us":
+                # Todo: Needs a test
+                self.API_URL = "https://api.binance.us/api"
+                self.MARGIN_API_URL = " https://api.binance.us/sapi"
+                self.WEBSITE_URL = "https://www.binance.us"
+                self.FUTURES_URL = "https://fapi.binance.us/fapi"
+                self.FUTURES_DATA_URL = "https://fapi.binance.us/futures/data"
+                self.FUTURES_COIN_URL = "https://fapi.binance.us/fapi"
+                self.FUTURES_COIN_DATA_URL = "https://dapi.binance.us/futures/data"
+            elif self.exchange == "trbinance.com":
+                # Todo: Needs a test
+                self.API_URL = "https://www.trbinance.com/api"
+                self.MARGIN_API_URL = " https://api.trbinance.com/sapi"
+                self.WEBSITE_URL = "https://www.trbinance.com"
+                self.FUTURES_URL = "https://fapi.trbinance.com/fapi"
+                self.FUTURES_DATA_URL = "https://fapi.trbinance.com/futures/data"
+                self.FUTURES_COIN_URL = "https://fapi.trbinance.com/fapi"
+                self.FUTURES_COIN_DATA_URL = "https://dapi.trbinance.com/futures/data"
+            elif self.exchange:
+                # Unknown Exchange
+                error_msg = f"Unknown exchange '{str(self.exchange)}'! Read the docs to see a list of supported " \
+                            "exchanges: https://unicorn-binance-rest-api.docs.lucit.tech/readme.html#what-are-the-" \
+                            "benefits-of-the-unicorn-binance-rest-api"
+                logger.critical(error_msg)
+                self.stop_manager()
+                raise UnknownExchange(error_msg)
+            else:
+                if tld is None:
+                    self.API_URL = "https://api.binance.com/api"
+                    self.MARGIN_API_URL = " https://api.binance.com/sapi"
+                    self.WEBSITE_URL = "https://www.binance.com"
+                    self.FUTURES_URL = "https://fapi.binance.com/fapi"
+                    self.FUTURES_DATA_URL = "https://fapi.binance.com/futures/data"
+                    self.FUTURES_COIN_URL = "https://fapi.binance.com/fapi"
+                    self.FUTURES_COIN_DATA_URL = "https://dapi.binance.com/futures/data"
 
-        if self.debug:
-            print(f"tld: {tld}, exchange: {exchange}\r\n"
-                  f"self.API_URL: {self.API_URL}\r\nself.MARGIN_API_URL: {self.MARGIN_API_URL}\r\n"
-                  f"self.WEBSITE_URL: {self.WEBSITE_URL}\r\nself.FUTURES_URL: {self.FUTURES_URL}\r\n"
-                  f"self.FUTURES_DATA_URL: {self.FUTURES_DATA_URL}\r\nself.FUTURES_COIN_URL: {self.FUTURES_COIN_URL}\r\n"
-                  f"self.FUTURES_COIN_DATA_URL: {self.FUTURES_COIN_DATA_URL}")
+            if self.debug:
+                print(f"tld: {tld}, exchange: {exchange}\r\n"
+                      f"self.API_URL: {self.API_URL}\r\nself.MARGIN_API_URL: {self.MARGIN_API_URL}\r\n"
+                      f"self.WEBSITE_URL: {self.WEBSITE_URL}\r\nself.FUTURES_URL: {self.FUTURES_URL}\r\n"
+                      f"self.FUTURES_DATA_URL: {self.FUTURES_DATA_URL}\r\nself.FUTURES_COIN_URL: "
+                      f"{self.FUTURES_COIN_URL}\r\n"
+                      f"self.FUTURES_COIN_DATA_URL: {self.FUTURES_COIN_DATA_URL}")
 
-        self.API_KEY = api_key
-        self.API_SECRET = api_secret
-        self.last_update_check_github = {'timestamp': time.time(),
-                                         'status': None}
+            self.API_KEY = api_key
+            self.API_SECRET = api_secret
+            self.last_update_check_github = {'timestamp': time.time(),
+                                             'status': None}
 
-        self._requests_params = requests_params
-        self.response = None
-        self.session = self._init_session()
-        self.timestamp_offset = 0
-
-        # init DNS and SSL cert
-        self.ping()
-        # calculate timestamp offset between local and binance api server
-        res = self.get_server_time()
-        try:
-            self.timestamp_offset = res['serverTime'] - int(time.time() * 1000)
-        except KeyError:
+            self._requests_params = requests_params
+            self.response = None
+            self.session = self._init_session()
             self.timestamp_offset = 0
-        if warn_on_update and self.is_update_availabe():
-            update_msg = f"Release {self.name}_" + self.get_latest_version() + " is available, " \
-                         f"please consider updating! (Changelog: " \
-                         f"https://unicorn-binance-rest-api.docs.lucit.tech/CHANGELOG.html)"
-            print(update_msg)
-            logger.warning(update_msg)
+
+            # calculate timestamp offset between local and binance api server
+            res = self.get_server_time()
+            try:
+                self.timestamp_offset = res['serverTime'] - int(time.time() * 1000)
+            except KeyError:
+                self.timestamp_offset = 0
+
+            # Cache DNS and init request session
+            self.ping()
+
+            if warn_on_update and self.is_update_availabe():
+                update_msg = f"Release {self.name}_" + self.get_latest_version() + " is available, " \
+                             f"please consider updating! (Changelog: " \
+                             f"https://unicorn-binance-rest-api.docs.lucit.tech/changelog.html)"
+                print(update_msg)
+                logger.warning(update_msg)
+
+    def __enter__(self):
+        logger.debug(f"Entering with-context of BinanceRestApiManager() ...")
+        if self.sigterm is True:
+            info = f"`BinanceRestApiManager()` instance has already been stopped and cannot be used."
+            logger.critical(info)
+            raise AlreadyStoppedError(info)
+        return self
+
+    def __exit__(self, exc_type, exc_value, error_traceback):
+        logger.debug(f"Leaving with-context of BinanceRestApiManager() ...")
+        self.stop_manager()
+        if exc_type:
+            logger.critical(f"An exception occurred: {exc_type} - {exc_value} - {error_traceback}")
 
     def _init_session(self):
         session = requests.session()
@@ -408,8 +471,7 @@ class BinanceRestApiManager(object):
         options = {1: self.FUTURES_API_VERSION, 2: self.FUTURES_API_VERSION2}
         return self.FUTURES_COIN_URL + "/" + options[version] + "/" + path
 
-    def _create_futures_coin_data_api_url(self, path, version=1):
-        # Todo: version is obsolete?
+    def _create_futures_coin_data_api_url(self, path):
         return self.FUTURES_COIN_DATA_URL + "/" + path
 
     def _generate_signature(self, data):
@@ -441,6 +503,27 @@ class BinanceRestApiManager(object):
         return params
 
     def _request(self, method, uri, signed, force_params=False, throw_exception=True, **kwargs):
+        if self.sigterm is True:
+            info = f"`BinanceRestApiManager()` instance has already been stopped and cannot be used."
+            logger.critical(info)
+            raise AlreadyStoppedError(info)
+
+        # if an api_secret and api_key are provided the request session gets reset with new settings
+        try:
+            api_key = kwargs['api_key']
+            api_secret = kwargs['api_secret']
+            del kwargs['api_key']
+            del kwargs['api_secret']
+        except KeyError:
+            api_key = None
+            api_secret = None
+        if api_key is not None and api_secret is not None:
+            logger.debug(f"_request() - Got `api_key` and `api_secret` via `**kwargs`, resetting request session.")
+            self.API_KEY = api_key
+            self.API_SECRET = api_secret
+            if self.session is not None:
+                self.session.close()
+            self.session = self._init_session()
 
         # set default requests timeout
         kwargs['timeout'] = 10
@@ -493,7 +576,8 @@ class BinanceRestApiManager(object):
 
         return self._request(method, uri, signed, throw_exception=throw_exception, **kwargs)
 
-    def _request_margin_api(self, method, path, signed=False, version=MARGIN_API_VERSION, throw_exception=True, **kwargs):
+    def _request_margin_api(self, method, path, signed=False,
+                            version=MARGIN_API_VERSION, throw_exception=True, **kwargs):
         uri = self._create_margin_api_uri(path, version)
 
         return self._request(method, uri, signed, throw_exception=throw_exception, **kwargs)
@@ -634,7 +718,7 @@ class BinanceRestApiManager(object):
         products = self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
         return products
 
-    def get_exchange_info(self):
+    def get_exchange_info(self, **params):
         """
         Return rate limits and list of symbols
 
@@ -697,13 +781,13 @@ class BinanceRestApiManager(object):
 
         """
 
-        return self._get('exchangeInfo', version=self.PRIVATE_API_VERSION)
+        return self._get('exchangeInfo', version=self.PRIVATE_API_VERSION, data=params)
 
     def get_symbol_info(self, symbol):
         """
         Return information about a symbol
 
-        :param symbol: required e.g BNBBTC
+        :param symbol: required e.g. BNBBTC
         :type symbol: str
 
         :returns: Dict if found, None if not
@@ -980,12 +1064,11 @@ class BinanceRestApiManager(object):
                     "l": 27781,         # Last tradeId
                     "T": 1498793709153, # Timestamp
                     "m": true,          # Was the buyer the maker?
-                    "M": true           # Was the trade the best price match?
+                    "M": true,          # Was the trade the best price match?
                 }
             ]
 
         :raises: BinanceRequestException, BinanceAPIException
-
         """
         return self._get('aggTrades', data=params, version=self.PRIVATE_API_VERSION)
 
@@ -1123,9 +1206,9 @@ class BinanceRestApiManager(object):
 
     def _get_earliest_valid_timestamp(self, symbol, interval):
         """
-        Get earliest valid open timestamp from Binance
+        Get the earliest valid open timestamp from Binance
 
-        :param symbol: Name of symbol pair e.g BNBBTC
+        :param symbol: Name of symbol pair e.g. BNBBTC
         :type symbol: str
         :param interval: Binance Kline interval
         :type interval: str
@@ -1151,7 +1234,7 @@ class BinanceRestApiManager(object):
 
         If using offset strings for dates add "UTC" to date string e.g. "now UTC", "11 hours ago UTC"
 
-        :param symbol: Name of symbol pair e.g BNBBTC
+        :param symbol: Name of symbol pair e.g. BNBBTC
         :type symbol: str
         :param interval: Binance Kline interval
         :type interval: str
@@ -1234,7 +1317,7 @@ class BinanceRestApiManager(object):
 
         If using offset strings for dates add "UTC" to date string e.g. "now UTC", "11 hours ago UTC"
 
-        :param symbol: Name of symbol pair e.g BNBBTC
+        :param symbol: Name of symbol pair e.g. BNBBTC
         :type symbol: str
         :param interval: Binance Kline interval
         :type interval: str
@@ -1248,7 +1331,7 @@ class BinanceRestApiManager(object):
 
         """
 
-        # setup the max limit
+        # set up the max limit
         limit = 500
 
         # convert interval to useful value in seconds
@@ -2672,6 +2755,7 @@ class BinanceRestApiManager(object):
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
 
+
         .. code:: python
 
             result = client.transfer_dust(asset='ONE')
@@ -2713,6 +2797,7 @@ class BinanceRestApiManager(object):
         :type endTime: long
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+
 
         .. code:: python
 
@@ -2764,6 +2849,7 @@ class BinanceRestApiManager(object):
         :type size: int
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+
 
         .. code:: python
 
@@ -2884,8 +2970,8 @@ class BinanceRestApiManager(object):
 
         Assumptions:
 
-        - You must have Withdraw permissions enabled on your API key
-        - You must have withdrawn to the address specified through the website and approved the transaction via email
+        - You must have withdrawal permissions enabled on your API key
+        - You must have withdrawal to the address specified through the website and approved the transaction via email
 
         :param coin: required
         :type coin: str
@@ -3114,7 +3200,7 @@ class BinanceRestApiManager(object):
 
     # User Stream Endpoints
 
-    def stream_get_listen_key(self, output="value", throw_exception=True):
+    def stream_get_listen_key(self, output="value", throw_exception=True, **kwargs):
         """Start a new user data stream and return the listen key
         If a stream already exists it should return the same key.
         If the stream becomes invalid a new key is returned.
@@ -3140,7 +3226,7 @@ class BinanceRestApiManager(object):
 
         """
         res = self._post('userDataStream', False, data={}, version=self.PRIVATE_API_VERSION,
-                         throw_exception=throw_exception)
+                         throw_exception=throw_exception, **kwargs)
         if output == "value":
             return res['listenKey']
         elif output == "raw_data":
@@ -3148,8 +3234,8 @@ class BinanceRestApiManager(object):
         else:
             return res['listenKey']
 
-    def stream_keepalive(self, listenKey, throw_exception=True):
-        """PING a user data stream to prevent a time out.
+    def stream_keepalive(self, listenKey, throw_exception=True, **kwargs):
+        """PING a user data stream to prevent a timeout.
 
         https://binance-docs.github.io/apidocs/spot/en/#keepalive-user-data-stream-user_stream
 
@@ -3171,9 +3257,9 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._put('userDataStream', False, data=params, version=self.PRIVATE_API_VERSION,
-                         throw_exception=throw_exception)
+                         throw_exception=throw_exception, **kwargs)
 
-    def stream_close(self, listenKey, throw_exception=True):
+    def stream_close(self, listenKey, throw_exception=True, **kwargs):
         """Close out a user data stream.
 
         https://binance-docs.github.io/apidocs/spot/en/#close-user-data-stream-user_stream
@@ -3196,7 +3282,7 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._delete('userDataStream', False, data=params, version=self.PRIVATE_API_VERSION,
-                         throw_exception=throw_exception)
+                         throw_exception=throw_exception, **kwargs)
 
     # Margin Trading Endpoints
 
@@ -3376,6 +3462,7 @@ class BinanceRestApiManager(object):
 
         :param asset: name of the asset
         :type asset: str
+
 
         .. code:: python
 
@@ -3622,6 +3709,7 @@ class BinanceRestApiManager(object):
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
 
+
         .. code:: python
 
             transfer = client.transfer_margin_to_spot(asset='BTC', amount='1.1')
@@ -3651,6 +3739,7 @@ class BinanceRestApiManager(object):
         :type amount: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+
 
         .. code:: python
 
@@ -3685,6 +3774,7 @@ class BinanceRestApiManager(object):
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
 
+
         .. code:: python
 
             transfer = client.transfer_isolated_margin_to_spot(asset='BTC', 
@@ -3718,6 +3808,7 @@ class BinanceRestApiManager(object):
         :type amount: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+
 
         .. code:: python
 
@@ -3754,6 +3845,7 @@ class BinanceRestApiManager(object):
         :type symbol: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+
 
         .. code:: python
 
@@ -3792,6 +3884,7 @@ class BinanceRestApiManager(object):
         :type symbol: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+
 
         .. code:: python
 
@@ -3838,7 +3931,8 @@ class BinanceRestApiManager(object):
         :type price: str
         :param limitIcebergQty: Used to make the LIMIT_MAKER leg an iceberg order.
         :type limitIcebergQty: decimal
-        :param stopClientOrderId: A unique Id for the stop loss/stop loss limit leg. Automatically generated if not sent.
+        :param stopClientOrderId: A unique Id for the stop loss/stop loss limit leg. Automatically generated if not
+                                  sent.
         :type stopClientOrderId: str
         :param stopPrice: required
         :type stopPrice: str
@@ -4006,7 +4100,7 @@ class BinanceRestApiManager(object):
         return self._request_margin_api('delete', 'margin/orderList', signed=True, data=params)
 
     def get_margin_oco_order(self, **params):
-        """Retrieves a specific OCO based on provided optional parameters
+        """ Retrieves a specific OCO based on provided optional parameters
 
         https://binance-docs.github.io/apidocs/spot/en/#query-margin-account-39-s-oco-user_data
 
@@ -4022,6 +4116,8 @@ class BinanceRestApiManager(object):
         :type recvWindow: int
 
         :returns: API response
+
+        .. code-block:: python
 
             {
                 "orderListId": 27,
@@ -4046,7 +4142,7 @@ class BinanceRestApiManager(object):
                 ]
             }
 
-    """
+        """
         return self._request_margin_api('get', 'margin/orderList', signed=True, data=params)
 
     def get_open_margin_oco_orders(self, **params):
@@ -4058,7 +4154,7 @@ class BinanceRestApiManager(object):
         :type symbol: str
         :param symbol: mandatory for isolated margin, not supported for cross margin
         :type symbol: str
-        :param fromId: If supplied, neither startTime or endTime can be provided
+        :param fromId: If supplied, neither startTime nor endTime can be provided
         :type fromId: int
         :param startTime: optional
         :type startTime: int
@@ -4070,6 +4166,8 @@ class BinanceRestApiManager(object):
         :type recvWindow: int
 
         :returns: API response
+
+        .. code-block:: python
 
             [
                 {
@@ -4117,7 +4215,7 @@ class BinanceRestApiManager(object):
                 }
             ]
 
-    """
+        """
         return self._request_margin_api('get', 'margin/allOrderList', signed=True, data=params)
 
     def create_margin_order(self, **params):
@@ -4302,7 +4400,7 @@ class BinanceRestApiManager(object):
         :type isolatedSymbol: str
         :param txId: the tranId in of the created loan
         :type txId: str
-        :param startTime: earliest timestamp to filter transactions
+        :param startTime: the earliest timestamp to filter transactions
         :type startTime: str
         :param endTime: Used to uniquely identify this cancel. Automatically generated by default.
         :type endTime: str
@@ -4710,7 +4808,7 @@ class BinanceRestApiManager(object):
 
     # Cross-margin 
 
-    def margin_stream_get_listen_key(self, output="value", throw_exception=True):
+    def margin_stream_get_listen_key(self, output="value", throw_exception=True, **kwargs):
         """Start a new cross-margin data stream and return the listen key
         If a stream already exists it should return the same key.
         If the stream becomes invalid a new key is returned.
@@ -4735,7 +4833,8 @@ class BinanceRestApiManager(object):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        res = self._request_margin_api('post', 'userDataStream', signed=False, data={}, throw_exception=throw_exception)
+        res = self._request_margin_api('post', 'userDataStream', signed=False, data={},
+                                       throw_exception=throw_exception, **kwargs)
         if output == "value":
             return res['listenKey']
         elif output == "raw_data":
@@ -4743,8 +4842,8 @@ class BinanceRestApiManager(object):
         else:
             return res['listenKey']
 
-    def margin_stream_keepalive(self, listenKey, throw_exception=True):
-        """PING a cross-margin data stream to prevent a time out.
+    def margin_stream_keepalive(self, listenKey, throw_exception=True, **kwargs):
+        """PING a cross-margin data stream to prevent a timeout.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-margin
 
@@ -4766,9 +4865,9 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_margin_api('put', 'userDataStream', signed=False, data=params,
-                                        throw_exception=throw_exception)
+                                        throw_exception=throw_exception, **kwargs)
 
-    def margin_stream_close(self, listenKey, throw_exception=True):
+    def margin_stream_close(self, listenKey, throw_exception=True, **kwargs):
         """Close out a cross-margin data stream.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-margin
@@ -4791,11 +4890,11 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_margin_api('delete', 'userDataStream', signed=False, data=params,
-                                        throw_exception=throw_exception)
+                                        throw_exception=throw_exception, **kwargs)
 
     # Isolated margin 
 
-    def isolated_margin_stream_get_listen_key(self, symbol, output="value", throw_exception=True):
+    def isolated_margin_stream_get_listen_key(self, symbol, output="value", throw_exception=True, **kwargs):
         """Start a new isolated margin data stream and return the listen key
         If a stream already exists it should return the same key.
         If the stream becomes invalid a new key is returned.
@@ -4827,7 +4926,7 @@ class BinanceRestApiManager(object):
             'symbol': symbol
         }
         res = self._request_margin_api('post', 'userDataStream/isolated', signed=False, data=params,
-                                       throw_exception=throw_exception)
+                                       throw_exception=throw_exception, **kwargs)
         if output == "value":
             return res['listenKey']
         elif output == "raw_data":
@@ -4835,8 +4934,8 @@ class BinanceRestApiManager(object):
         else:
             return res['listenKey']
 
-    def isolated_margin_stream_keepalive(self, symbol, listenKey, throw_exception=True):
-        """PING an isolated margin data stream to prevent a time out.
+    def isolated_margin_stream_keepalive(self, symbol, listenKey, throw_exception=True, **kwargs):
+        """PING an isolated margin data stream to prevent a timeout.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-isolated-margin
 
@@ -4861,9 +4960,9 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_margin_api('put', 'userDataStream/isolated', signed=False, data=params,
-                                        throw_exception=throw_exception)
+                                        throw_exception=throw_exception, **kwargs)
 
-    def isolated_margin_stream_close(self, symbol, listenKey, throw_exception=True):
+    def isolated_margin_stream_close(self, symbol, listenKey, throw_exception=True, **kwargs):
         """Close out an isolated margin data stream.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-isolated-margin
@@ -4889,7 +4988,7 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_margin_api('delete', 'userDataStream/isolated', signed=False, data=params,
-                                        throw_exception=throw_exception)
+                                        throw_exception=throw_exception, **kwargs)
 
     # Lending Endpoints
 
@@ -5398,7 +5497,7 @@ class BinanceRestApiManager(object):
                     "email":"123@test.com",      // user email
                     "isSubUserEnabled": true,    // true or false
                     "isUserActive": true,        // true or false
-                    "insertTime": 1570791523523  // sub account create time
+                    "insertTime": 1570791523523  // subaccount create time
                     "isMarginEnabled": true,     // true or false for margin
                     "isFutureEnabled": true      // true or false for futures.
                     "mobile": 1570791523523      // user mobile number
@@ -5813,7 +5912,7 @@ class BinanceRestApiManager(object):
         return self._request_margin_api('post', 'sub-account/transfer/subToMaster', True, data=params)
 
     def get_subaccount_transfer_history(self, **params):
-        """Sub-account Transfer History (For Sub-account)
+        """Subaccount Transfer History (For Sub-account)
 
         https://binance-docs.github.io/apidocs/spot/en/#transfer-to-master-for-sub-account
 
@@ -5998,13 +6097,13 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_api('get', 'time')
 
-    def futures_exchange_info(self):
+    def futures_exchange_info(self, **params):
         """Current exchange trading rules and symbol information
 
         https://binance-docs.github.io/apidocs/futures/en/#exchange-information-market_data
 
         """
-        return self._request_futures_api('get', 'exchangeInfo')
+        return self._request_futures_api('get', 'exchangeInfo', data=params)
 
     def futures_order_book(self, **params):
         """Get the Order Book for the market
@@ -6340,7 +6439,7 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_api('get', 'positionSide/dual', True, data=params)
 
-    def futures_stream_get_listen_key(self, output="value", throw_exception=True):
+    def futures_stream_get_listen_key(self, output="value", throw_exception=True, **kwargs):
         """Start a new futures data stream and return the listen key
         If a stream already exists it should return the same key.
         If the stream becomes invalid a new key is returned.
@@ -6365,7 +6464,8 @@ class BinanceRestApiManager(object):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        res = self._request_futures_api('post', 'listenKey', signed=False, data={}, throw_exception=throw_exception)
+        res = self._request_futures_api('post', 'listenKey', signed=False, data={},
+                                        throw_exception=throw_exception, **kwargs)
         if output == "value":
             return res['listenKey']
         elif output == "raw_data":
@@ -6373,8 +6473,8 @@ class BinanceRestApiManager(object):
         else:
             return res['listenKey']
 
-    def futures_stream_keepalive(self, listenKey, throw_exception=True):
-        """PING a futures data stream to prevent a time out.
+    def futures_stream_keepalive(self, listenKey, throw_exception=True, **kwargs):
+        """PING a futures data stream to prevent a timeout.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-margin
 
@@ -6396,9 +6496,9 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_futures_api('put', 'listenKey', signed=False, data=params,
-                                         throw_exception=throw_exception)
+                                         throw_exception=throw_exception, **kwargs)
 
-    def futures_stream_close(self, listenKey, throw_exception=True):
+    def futures_stream_close(self, listenKey, throw_exception=True, **kwargs):
         """Close out a futures data stream.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-margin
@@ -6421,7 +6521,7 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_futures_api('delete', 'listenKey', signed=False, data=params,
-                                         throw_exception=throw_exception)
+                                         throw_exception=throw_exception, **kwargs)
 
     # COIN Futures API
     def futures_coin_ping(self):
@@ -6442,14 +6542,14 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_coin_api("get", "time")
 
-    def futures_coin_exchange_info(self):
+    def futures_coin_exchange_info(self, **params):
         """
         Current exchange trading rules and symbol information
 
         https://binance-docs.github.io/apidocs/delivery/en/#exchange-information
 
         """
-        return self._request_futures_coin_api("get", "exchangeInfo")
+        return self._request_futures_coin_api("get", "exchangeInfo", data=params)
 
     def futures_coin_order_book(self, **params):
         """
@@ -6812,7 +6912,7 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_coin_api("get", "positionSide/dual", True, data=params)
 
-    def futures_coin_stream_get_listen_key(self, output="value", throw_exception=True):
+    def futures_coin_stream_get_listen_key(self, output="value", throw_exception=True, **kwargs):
         """Start a new coin futures data stream and return the listen key
         If a stream already exists it should return the same key.
         If the stream becomes invalid a new key is returned.
@@ -6838,7 +6938,7 @@ class BinanceRestApiManager(object):
 
         """
         res = self._request_futures_coin_api('post', 'listenKey', signed=False, data={},
-                                             throw_exception=throw_exception)
+                                             throw_exception=throw_exception, **kwargs)
         if output == "value":
             return res['listenKey']
         elif output == "raw_data":
@@ -6846,8 +6946,8 @@ class BinanceRestApiManager(object):
         else:
             return res['listenKey']
 
-    def futures_coin_stream_keepalive(self, listenKey, throw_exception=True):
-        """PING a coin futures data stream to prevent a time out.
+    def futures_coin_stream_keepalive(self, listenKey, throw_exception=True, **kwargs):
+        """PING a coin futures data stream to prevent a timeout.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-margin
 
@@ -6869,9 +6969,9 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_futures_coin_api('put', 'listenKey', signed=False, data=params,
-                                              throw_exception=throw_exception)
+                                              throw_exception=throw_exception, **kwargs)
 
-    def futures_coin_stream_close(self, listenKey, throw_exception=True):
+    def futures_coin_stream_close(self, listenKey, throw_exception=True, **kwargs):
         """Close out a coin futures data stream.
 
         https://binance-docs.github.io/apidocs/spot/en/#listen-key-margin
@@ -6894,8 +6994,7 @@ class BinanceRestApiManager(object):
             'listenKey': listenKey
         }
         return self._request_futures_coin_api('delete', 'listenKey', signed=False, data=params,
-                                              throw_exception=throw_exception)
-
+                                              throw_exception=throw_exception, **kwargs)
 
     def get_all_coins_info(self, **params):
         """
@@ -7120,3 +7219,21 @@ class BinanceRestApiManager(object):
 
         """
         return self._request_margin_api('post', 'enableFastWithdrawSwitch', True, data=params)
+
+    def stop_manager(self, close_api_session=True):
+        """
+        Stop the BinanceRestApiManager
+        """
+        logger.info("BinanceRestApiManager.stop_manager() - Stopping "
+                    "unicorn_binance_rest_api_manager " + self.version + " ...")
+        self.sigterm = True
+        # close the request session
+        try:
+            if self.session is not None:
+                self.session.close()
+        except AttributeError as error_msg:
+            logger.debug(f"BinanceRestApiManager.stop_manager() - AttributeError: {error_msg}")
+        # close lucit license manger and the api session
+        if close_api_session is True:
+            self.llm.close()
+        return True
