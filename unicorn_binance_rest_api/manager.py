@@ -2808,6 +2808,18 @@ class BinanceRestApiManager(object):
 
         """
         return self._request_margin_api('get', 'asset/transfer', signed=True, data=params)
+    
+    # My ADDON for Spot
+    def get_account_fee(self, **params):
+        """Get trade fee.
+        :returns: API response
+
+        .. code-block:: python
+
+        :raises: BinanceWithdrawException
+
+        """
+        return self._get('account/commission', signed=True, version=self.PRIVATE_API_VERSION, data=params)
 
     def get_trade_fee(self, **params):
         """Get trade fee.
@@ -6161,13 +6173,14 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_api('post', 'countdownCancelAll', True, data=params)
 
+    # My changes for fee request path
     def futures_commission_rate(self, **params):
         """Get commission rate (user data)
 
         https://binance-docs.github.io/apidocs/futures/en/#user-commission-rate-user_data
 
         """
-        return self._request_futures_coin_api("get", "commissionRate", version=1, signed=True, data=params)
+        return self._request_futures_api("get", "commissionRate", True, data=params)
 
     def transfer_history(self, **params):
         """Get future account transaction history list
