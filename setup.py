@@ -37,7 +37,7 @@
 import setuptools
 from unicorn_binance_rest_api.manager import BinanceRestApiManager
 
-ubra = BinanceRestApiManager(exchange="binance.us")
+ubra = BinanceRestApiManager(exchange="binance.com")
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
