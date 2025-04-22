@@ -1,0 +1,19 @@
+# Changes must also be made in the following files:
+# ./environment.yml
+# ./meta.yaml
+# ./pyproject.toml
+# ./setup.py
+
+certifi>=2023.7.22
+colorama
+cryptography>=42.0.4
+Cython
+dateparser
+lucit-licensing-python>=1.8.2
+pyOpenSSL
+PySocks
+pytz
+regex
+requests>=2.31.0
+service-identity
+ujson
