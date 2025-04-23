@@ -44,7 +44,7 @@ from typing import Optional
 from urllib.parse import urlencode
 from .helpers import date_to_milliseconds, interval_to_milliseconds
 from .exceptions import *
-from .licensing_manager import LucitLicensingManager, NoValidatedLucitLicense
+# from .licensing_manager import LucitLicensingManager, NoValidatedLucitLicense
 
 import colorama
 import cython
@@ -238,17 +238,17 @@ class BinanceRestApiManager(object):
         self.lucit_license_profile: Optional[str] = lucit_license_profile
         self.lucit_license_token: Optional[str] = lucit_license_token
         license_type: Optional[str] = "UNICORN-BINANCE-SUITE"
-        self.llm = LucitLicensingManager(api_secret=self.lucit_api_secret,
-                                         license_ini=self.lucit_license_ini,
-                                         license_profile=self.lucit_license_profile,
-                                         license_token=self.lucit_license_token,
-                                         parent_shutdown_function=self.stop_manager,
-                                         program_used=self.name,
-                                         needed_license_type=license_type,
-                                         start=True)
-        licensing_exception = self.llm.get_license_exception()
-        if licensing_exception is not None:
-            raise NoValidatedLucitLicense(licensing_exception)
+        # self.llm = LucitLicensingManager(api_secret=self.lucit_api_secret,
+        #                                  license_ini=self.lucit_license_ini,
+        #                                  license_profile=self.lucit_license_profile,
+        #                                  license_token=self.lucit_license_token,
+        #                                  parent_shutdown_function=self.stop_manager,
+        #                                  program_used=self.name,
+        #                                  needed_license_type=license_type,
+        #                                  start=True)
+        # licensing_exception = self.llm.get_license_exception()
+        # if licensing_exception is not None:
+        #     raise NoValidatedLucitLicense(licensing_exception)
 
         if self.sigterm is False:
             if disable_colorama is not True:
@@ -420,12 +420,12 @@ class BinanceRestApiManager(object):
             except KeyError:
                 self.timestamp_offset = 0
 
-            if warn_on_update and self.is_update_availabe():
-                update_msg = f"Release {self.name}_" + self.get_latest_version() + " is available, " \
-                             f"please consider updating! Changelog: " \
-                             f"https://unicorn-binance-rest-api.docs.lucit.tech/changelog.html"
-                print(update_msg)
-                logger.warning(update_msg)
+            # if warn_on_update and self.is_update_availabe():
+            #     update_msg = f"Release {self.name}_" + self.get_latest_version() + " is available, " \
+            #                  f"please consider updating! Changelog: " \
+            #                  f"https://unicorn-binance-rest-api.docs.lucit.tech/changelog.html"
+            #     print(update_msg)
+            #     logger.warning(update_msg)
 
     def __enter__(self):
         logger.debug(f"Entering with-context of BinanceRestApiManager() ...")
@@ -462,6 +462,9 @@ class BinanceRestApiManager(object):
         url = self.FUTURES_URL
         options = {1: self.FUTURES_API_VERSION, 2: self.FUTURES_API_VERSION2}
         return url + '/' + options[version] + '/' + path
+    
+    def _create_futures_api_uri_v2(self, path):
+        return self.FUTURES_URL + '/' + self.FUTURES_API_VERSION2 + '/' + path
 
     def _create_futures_data_api_uri(self, path):
         return self.FUTURES_DATA_URL + '/' + path
@@ -590,6 +593,10 @@ class BinanceRestApiManager(object):
 
     def _request_futures_api(self, method, path, signed=False, version=1, throw_exception=True, **kwargs):
         uri = self._create_futures_api_uri(path, version=version)
+        return self._request(method, uri, signed, True, throw_exception=throw_exception, **kwargs)
+    
+    def _request_futures_api_v2(self, method, path, signed=False, throw_exception=True, **kwargs):
+        uri = self._create_futures_api_uri_v2(path)
         return self._request(method, uri, signed, True, throw_exception=throw_exception, **kwargs)
 
     def _request_futures_data_api(self, method, path, signed=False, throw_exception=True, **kwargs):
@@ -2902,6 +2909,18 @@ class BinanceRestApiManager(object):
 
         """
         return self._request_margin_api('get', 'asset/transfer', signed=True, data=params)
+    
+    # My ADDON for Spot
+    def get_account_fee(self, **params):
+        """Get trade fee.
+        :returns: API response
+
+        .. code-block:: python
+
+        :raises: BinanceWithdrawException
+
+        """
+        return self._get('account/commission', signed=True, version=self.PRIVATE_API_VERSION, data=params)
 
     def get_trade_fee(self, **params):
         """Get trade fee.
@@ -6274,7 +6293,7 @@ class BinanceRestApiManager(object):
         https://binance-docs.github.io/apidocs/futures/en/#user-commission-rate-user_data
 
         """
-        return self._request_futures_coin_api("get", "commissionRate", version=1, signed=True, data=params)
+        return self._request_futures_api("get", "commissionRate", True, data=params)
 
     def transfer_history(self, **params):
         """Get future account transaction history list
@@ -7250,6 +7269,6 @@ class BinanceRestApiManager(object):
         except AttributeError as error_msg:
             logger.debug(f"BinanceRestApiManager.stop_manager() - AttributeError: {error_msg}")
         # close lucit license manger and the api session
-        if close_api_session is True:
-            self.llm.close()
+        # if close_api_session is True:
+        #     self.llm.close()
         return True

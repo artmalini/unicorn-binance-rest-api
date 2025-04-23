@@ -40,7 +40,7 @@
 
 from unicorn_binance_rest_api.manager import BinanceRestApiManager
 from unicorn_binance_rest_api.exceptions import AlreadyStoppedError, UnknownExchange
-from lucit_licensing_python.exceptions import NoValidatedLucitLicense
+# from lucit_licensing_python.exceptions import NoValidatedLucitLicense
 import logging
 import os
 
@@ -64,8 +64,6 @@ try:
 
     print(f"Leaving ubra context manager")
     print(ubra.get_ticker(symbol="BNBUSDT"))
-except NoValidatedLucitLicense as error_msg:
-    print(f"ERROR LEVEL 1: {error_msg}")
 except AlreadyStoppedError as error_msg:
     print(f"ERROR LEVEL 1: {error_msg}")
 
@@ -79,8 +77,6 @@ try:
 
     print(f"Leaving ubra context manager")
     print(ubra.get_ticker(symbol="BNBUSDT"))
-except NoValidatedLucitLicense as error_msg:
-    print(f"ERROR LEVEL 1: {error_msg}")
 except UnknownExchange as error_msg:
     print(f"ERROR LEVEL 1: {error_msg}")
 except AlreadyStoppedError as error_msg:
