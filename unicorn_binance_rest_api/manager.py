@@ -97,6 +97,8 @@ class BinanceRestApiManager(object):
     :type exchange: str
     :param debug: If True the lib adds additional information to logging outputs
     :type debug:  bool
+    :param requests_timeout: Set the timeout for HTTP requests in seconds (default: 10). This determines how long the client will wait for a response before timing out.
+    :type requests_timeout: int
     :param disable_colorama: set to True to disable the use of `colorama <https://pypi.org/project/colorama/>`_
     :type disable_colorama: bool
     :param socks5_proxy_server: Set this to activate the usage of a socks5 proxy. Example: '127.0.0.1:9050'
@@ -217,6 +219,7 @@ class BinanceRestApiManager(object):
                  exchange: Optional[str] = None,
                  disable_colorama: bool = False,
                  debug: bool = False,
+                 requests_timeout: int = 10,
                  socks5_proxy_server: Optional[str] = None,
                  socks5_proxy_user: Optional[str] = None,
                  socks5_proxy_pass: Optional[str] = None,
@@ -238,6 +241,7 @@ class BinanceRestApiManager(object):
         self.lucit_license_profile: Optional[str] = lucit_license_profile
         self.lucit_license_token: Optional[str] = lucit_license_token
         license_type: Optional[str] = "UNICORN-BINANCE-SUITE"
+        self.requests_timeout = requests_timeout
         # self.llm = LucitLicensingManager(api_secret=self.lucit_api_secret,
         #                                  license_ini=self.lucit_license_ini,
         #                                  license_profile=self.lucit_license_profile,
@@ -530,7 +534,7 @@ class BinanceRestApiManager(object):
             self.session = self._init_session()
 
         # set default requests timeout
-        kwargs['timeout'] = 10
+        kwargs['timeout'] = self.requests_timeout
 
         # add our global requests params
         if self._requests_params:
