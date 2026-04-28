@@ -38,7 +38,7 @@
 # IN THE SOFTWARE.
 
 from unicorn_binance_rest_api.manager import BinanceRestApiManager
-from lucit_licensing_python.exceptions import NoValidatedLucitLicense
+# from lucit_licensing_python.exceptions import NoValidatedLucitLicense
 import logging
 import os
 

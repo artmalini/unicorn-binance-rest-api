@@ -59,11 +59,7 @@ logging.basicConfig(level=logging.DEBUG,
                     style="{")
 
 def is_github_action_env():
-    try:
-        print(f"{os.environ[f'LUCIT_LICENSE_TOKEN']}")
-        return True
-    except KeyError:
-        return False
+    return True
 
 
 print(f"Starting unittests!")
@@ -73,7 +69,7 @@ class TestBinanceUsRestManager(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print(f"\r\nTestBinanceUsRestManager:")
-        cls.ubra = BinanceRestApiManager('api_key', 'api_secret', exchange="binance.us")
+        cls.ubra = BinanceRestApiManager('api_key', 'api_secret', exchange="binance.com")
 
     @classmethod
     def tearDownClass(cls):
@@ -101,11 +97,11 @@ class TestBinanceUsRestManager(unittest.TestCase):
         second_res = []
 
         with requests_mock.mock() as m:
-            m.get('https://api.binance.us/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC',
+            m.get('https://api.binance.com/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC',
                   json=first_available_res)
-            m.get('https://api.binance.us/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&symbol=BNBBTC',
+            m.get('https://api.binance.com/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&symbol=BNBBTC',
                   json=first_res)
-            m.get('https://api.binance.us/api/v3/klines?interval=1m&limit=500&startTime=1519892400000&symbol=BNBBTC',
+            m.get('https://api.binance.com/api/v3/klines?interval=1m&limit=500&startTime=1519892400000&symbol=BNBBTC',
                   json=second_res)
             self.__class__.ubra.get_historical_klines(
                 symbol="BNBBTC",
@@ -155,11 +151,11 @@ class TestBinanceUsRestManager(unittest.TestCase):
 
         with requests_mock.mock() as m:
             m.get(
-                "https://api.binance.us/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC",
+                "https://api.binance.com/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC",
                 json=first_available_res,
             )
             m.get(
-                "https://api.binance.us/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&"
+                "https://api.binance.com/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&"
                 "endTime=1519880400000&symbol=BNBBTC",
                 json=first_res,
             )
@@ -211,11 +207,11 @@ class TestBinanceUsRestManager(unittest.TestCase):
 
         with requests_mock.mock() as m:
             m.get(
-                "https://api.binance.us/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC",
+                "https://api.binance.com/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC",
                 json=first_available_res,
             )
             m.get(
-                "https://api.binance.us/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&"
+                "https://api.binance.com/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&"
                 "endTime=1519880400000&symbol=BNBBTC",
                 json=first_res,
             )
@@ -267,11 +263,11 @@ class TestBinanceUsRestManager(unittest.TestCase):
 
         with requests_mock.mock() as m:
             m.get(
-                "https://api.binance.us/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC",
+                "https://api.binance.com/api/v3/klines?interval=1m&limit=1&startTime=0&symbol=BNBBTC",
                 json=first_available_res,
             )
             m.get(
-                "https://api.binance.us/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&"
+                "https://api.binance.com/api/v3/klines?interval=1m&limit=500&startTime=1519862400000&"
                 "endTime=1519880400000&symbol=BNBBTC",
                 json=first_res,
             )
@@ -290,7 +286,7 @@ class TestBinanceUsRestManager(unittest.TestCase):
 
     def test_api_exception(self):
         """Test API response Exception"""
-        ubra = BinanceRestApiManager(exchange="binance.us")
+        ubra = BinanceRestApiManager(exchange="binance.com")
         with self.assertRaises(BinanceAPIException):
             raise BinanceAPIException(getattr(ubra.session, "get")("https://www.binance.com/testerror.uri"))
         ubra.stop_manager()
@@ -336,11 +332,11 @@ class TestBinanceUsRestManager(unittest.TestCase):
             raise BinanceWithdrawException("blob")
 
     def test_with_context(self):
-        with BinanceRestApiManager(exchange="binance.us") as with_ubra:
+        with BinanceRestApiManager(exchange="binance.com") as with_ubra:
             self.assertIsInstance(with_ubra.get_version(), str)
 
     def test_live_run(self):
-        ubra_us = BinanceRestApiManager(exchange="binance.us")
+        ubra_us = BinanceRestApiManager(exchange="binance.com")
         ubra_us.get_used_weight()
         ubra_us.stop_manager()
         if is_github_action_env is False:
