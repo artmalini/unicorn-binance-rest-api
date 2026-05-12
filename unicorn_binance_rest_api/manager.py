@@ -6315,6 +6315,11 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_api('post', 'order', True, data=params)
 
+    def futures_place_algo_order(self, **params):
+        """Send in a new algo order.
+        """
+        return self._request_futures_api('post', 'algoOrder', True, data=params)
+
     def futures_place_batch_order(self, **params):
         """Send in new orders.
         https://binance-docs.github.io/apidocs/delivery/en/#place-multiple-orders-trade
