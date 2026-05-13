@@ -6376,6 +6376,20 @@ class BinanceRestApiManager(object):
         """
         return self._request_futures_api('delete', 'allOpenOrders', True, data=params)
 
+    def futures_cancel_algo_open_orders(self, **params):
+        """
+        Cancel all Algo open futures order
+
+        """
+        return self._request_futures_api('delete', 'algoOrder', True, data=params)   
+
+    def futures_cancel_all_algo_open_orders(self, **params):
+        """
+        Cancel all Algo open futures orders
+
+        """
+        return self._request_futures_api('delete', 'algoOpenOrders', True, data=params)   
+
     def futures_cancel_orders(self, **params):
         """
         Cancel multiple futures orders
